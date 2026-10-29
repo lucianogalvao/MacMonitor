@@ -31,6 +31,20 @@ The app is ad-hoc signed (not notarized by Apple), so macOS blocks it the first 
 xattr -dr com.apple.quarantine /Applications/MacMonitor.app
 ```
 
+## Instalação (português)
+
+Requer um Mac com Apple Silicon (M1 ou mais novo) e macOS 14 Sonoma ou mais novo.
+
+1. Baixe o `MacMonitor.dmg` em [Releases](https://github.com/lucianogalvao/MacMonitor/releases), abra e arraste o MacMonitor para Aplicativos (se perguntar, escolha **Substituir**).
+2. O app não é notarizado pela Apple, então o macOS bloqueia na primeira vez. Vá em **Ajustes do Sistema → Privacidade e Segurança**, role até o fim e clique em **Abrir Mesmo Assim**.
+3. Se o macOS disser que o app está danificado, rode no Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MacMonitor.app
+```
+
+O MacMonitor aparece só na barra de menus, sem ícone no Dock. Para sair, use o botão **Sair** no painel ou ⌘Q com o painel aberto.
+
 ## Build
 
 ```bash
