@@ -157,6 +157,24 @@ final class PanelWindow: NSPanel {
 
     override var canBecomeKey: Bool { true }
 
+    /// O app nunca fica ativo, então o menu Editar pode não receber os atalhos;
+    /// eles vão direto para o campo em foco. Desfazer/Refazer chegam ao `undoManager` da janela.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        let action: Selector? = switch (flags, event.charactersIgnoringModifiers?.lowercased()) {
+        case (.command, "x"): #selector(NSText.cut(_:))
+        case (.command, "c"): #selector(NSText.copy(_:))
+        case (.command, "v"): #selector(NSText.paste(_:))
+        case (.command, "a"): #selector(NSText.selectAll(_:))
+        case (.command, "z"): Selector(("undo:"))
+        case ([.command, .shift], "z"): Selector(("redo:"))
+        case (.command, "q"): #selector(NSApplication.terminate(_:))
+        default: nil
+        }
+        if let action, NSApp.sendAction(action, to: nil, from: self) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
     /// Esc fecha o painel.
     override func cancelOperation(_ sender: Any?) {
         onClose?()
