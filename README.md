@@ -1,6 +1,6 @@
 # MacMonitor
 
-A lightweight system monitor for the macOS menu bar, built with Swift and SwiftUI.
+A lightweight system monitor for the macOS menu bar, built with Swift and SwiftUI. It lives only in the menu bar: no Dock icon and no windows, just a panel that opens from the menu bar item.
 
 - **CPU:** total and per-core usage, with history
 - **GPU:** usage and memory in use
@@ -38,6 +38,8 @@ xattr -dr com.apple.quarantine /Applications/MacMonitor.app
 open build/MacMonitor.app
 ./make-dmg.sh              # builds build/MacMonitor.dmg (app + Applications shortcut + install notes)
 ```
+
+The app starts through AppKit (`NSApplication`) instead of a SwiftUI `App`, since a SwiftUI scene would require an empty Settings window. A minimal hidden Edit menu keeps ⌘C/⌘V/⌘A/⌘Z working in the city field.
 
 The app icon is drawn in code (`Scripts/make-icon.swift`). To regenerate `Resources/AppIcon.icns`, run `Scripts/make-icon.sh`.
 
