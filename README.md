@@ -3,6 +3,7 @@
 A lightweight system monitor for the macOS menu bar, built with Swift and SwiftUI.
 
 - **CPU:** total and per-core usage, with history
+- **GPU:** usage and memory in use
 - **Temperatures:** CPU, GPU, SoC, SSD and battery (Apple Silicon)
 - **Memory:** usage, pressure, compressed and swap
 - **Network:** download/upload speed and local IP (hidden by default)
@@ -11,6 +12,8 @@ A lightweight system monitor for the macOS menu bar, built with Swift and SwiftU
 - **Processes:** top apps by CPU and by memory
 - **Weather:** current conditions, hourly and 7-day forecast via [Open-Meteo](https://open-meteo.com) (no API key needed)
 - **Alerts:** notifications for high CPU usage, memory pressure and CPU temperature
+
+Everything is configurable from the gear button in the panel: what shows up in the menu bar, which sections appear in the panel, and two layouts, **Normal** (cards with charts and details) and **Compact** (square tiles that fit without scrolling).
 
 ## Requirements
 

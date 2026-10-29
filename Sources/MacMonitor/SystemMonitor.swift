@@ -12,6 +12,9 @@ final class SystemMonitor {
     private(set) var cpuPerCore: [Double] = []
     private(set) var cpuHistory: [Double] = []
 
+    private(set) var gpu: GPUSample?
+    private(set) var gpuHistory: [Double] = []
+
     private(set) var memory: MemorySample?
 
     private(set) var download: Double = 0
@@ -42,6 +45,7 @@ final class SystemMonitor {
     @ObservationIgnored private let alerts = AlertMonitor()
     @ObservationIgnored private var isPanelVisible = false
     @ObservationIgnored private var loop: Task<Void, Never>?
+    @ObservationIgnored private var lastDiskSpaceRead = Date.distantPast
 
     init() {
         Task.detached(priority: .utility) {
@@ -73,6 +77,11 @@ final class SystemMonitor {
             append(cpu.total, to: &cpuHistory)
         }
 
+        gpu = GPUReader.read()
+        if let gpu {
+            append(gpu.utilization, to: &gpuHistory)
+        }
+
         memory = MemoryReader.read()
 
         if let network = networkReader.read() {
@@ -83,7 +92,11 @@ final class SystemMonitor {
         }
         localIP = NetworkReader.localIPv4()
 
-        diskSpace = DiskReader.space()
+        // O espaço livre muda devagar, e cada consulta gera dezenas de linhas no log do sistema
+        if diskSpace == nil || Date().timeIntervalSince(lastDiskSpaceRead) >= 60 {
+            diskSpace = DiskReader.space()
+            lastDiskSpaceRead = Date()
+        }
         if let disk = diskReader.activity() {
             diskRead = disk.read
             diskWrite = disk.write

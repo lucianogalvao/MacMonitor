@@ -6,6 +6,7 @@ struct Sparkline: View {
     let values: [Double]
     var maxValue: Double? = nil
     var color: Color = .accentColor
+    var height: CGFloat = 36
 
     var body: some View {
         Chart(Array(values.enumerated()), id: \.offset) { item in
@@ -21,7 +22,7 @@ struct Sparkline: View {
         .chartYAxis(.hidden)
         .chartXScale(domain: 0...(SystemMonitor.historyLength - 1))
         .chartYScale(domain: 0...(maxValue ?? max(values.max() ?? 1, 1)))
-        .frame(height: 36)
+        .frame(height: height)
     }
 }
 

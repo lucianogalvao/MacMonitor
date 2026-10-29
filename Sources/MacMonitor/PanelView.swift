@@ -1,5 +1,4 @@
 import SwiftUI
-import ServiceManagement
 
 struct PanelView: View {
     let system: SystemMonitor
@@ -9,49 +8,67 @@ struct PanelView: View {
         case system = "Sistema"
         case processes = "Processos"
         case weather = "Clima"
-        case alerts = "Alertas"
     }
 
-    static let contentHeight: CGFloat = 600
-
+    @AppStorage(Preferences.layout) private var layout = PanelLayout.normal
     @State private var tab: Tab = .system
+    @State private var isShowingSettings = false
 
     var body: some View {
         VStack(spacing: 12) {
-            if let device = system.device {
-                Label(device, systemImage: "laptopcomputer")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            header
+
+            if !isShowingSettings {
+                Picker("", selection: $tab) {
+                    ForEach(Tab.allCases, id: \.self) { Text($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
 
-            Picker("", selection: $tab) {
-                ForEach(Tab.allCases, id: \.self) { Text($0.rawValue) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
-            // Altura fixa: se o conteúdo muda de tamanho, a janela do MenuBarExtra
-            // encolhe pela borda de cima e se descola da barra de menus.
             ScrollView {
-                switch tab {
-                case .system: SystemTab(system: system)
-                case .processes: ProcessesTab(system: system)
-                case .weather: WeatherTab(weather: weather)
-                case .alerts: AlertsTab()
+                if isShowingSettings {
+                    SettingsView()
+                } else {
+                    switch tab {
+                    case .system: SystemTab(system: system, compact: layout == .compact)
+                    case .processes: ProcessesTab(system: system, compact: layout == .compact)
+                    case .weather: WeatherTab(weather: weather, compact: layout == .compact)
+                    }
                 }
             }
             .scrollIndicators(.never)
-            .frame(height: Self.contentHeight)
+            .frame(maxHeight: .infinity)
 
             Divider()
             FooterView()
         }
         .padding(14)
-        .frame(width: 340)
-        .onAppear { system.panelOpened() }
-        .onDisappear { system.panelClosed() }
+        .frame(width: PanelLayout.panelWidth, height: layout.panelHeight)
+    }
+
+    private var header: some View {
+        HStack {
+            if isShowingSettings {
+                Label("Configurações", systemImage: "gearshape")
+                    .font(.subheadline.weight(.semibold))
+            } else if let device = system.device {
+                Label(device, systemImage: "laptopcomputer")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                isShowingSettings.toggle()
+            } label: {
+                Image(systemName: isShowingSettings ? "xmark.circle.fill" : "gearshape")
+                    .font(.body)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help(isShowingSettings ? "Fechar configurações" : "Configurações")
+        }
     }
 }
 
@@ -59,19 +76,42 @@ struct PanelView: View {
 
 struct SystemTab: View {
     let system: SystemMonitor
+    let compact: Bool
+
+    @AppStorage(Preferences.hiddenSections) private var storedHidden = ""
 
     var body: some View {
+        let hidden = Set<PanelSection>(stored: storedHidden)
+        if compact {
+            CompactSystemView(system: system, sections: PanelSection.allCases.filter { !hidden.contains($0) })
+        } else {
+            cards(hidden: hidden)
+        }
+    }
+
+    private func cards(hidden: Set<PanelSection>) -> some View {
         VStack(spacing: 10) {
-            Card(title: "CPU", symbol: "cpu", trailing: Format.percent(system.cpuUsage)) {
-                Sparkline(values: system.cpuHistory, maxValue: 100, color: .blue)
-                CoreBars(values: system.cpuPerCore)
+            if !hidden.contains(.cpu) {
+                Card(title: "CPU", symbol: "cpu", trailing: Format.percent(system.cpuUsage)) {
+                    Sparkline(values: system.cpuHistory, maxValue: 100, color: .blue)
+                    CoreBars(values: system.cpuPerCore)
+                }
             }
 
-            if !system.temperatures.isEmpty {
+            if !hidden.contains(.gpu), let gpu = system.gpu {
+                Card(title: "GPU", symbol: "cube", trailing: Format.percent(gpu.utilization)) {
+                    Sparkline(values: system.gpuHistory, maxValue: 100, color: .purple)
+                    if let memory = gpu.memoryInUse {
+                        StatRow("Memória em uso", Format.memory(memory))
+                    }
+                }
+            }
+
+            if !hidden.contains(.temperatures), !system.temperatures.isEmpty {
                 TemperatureCard(groups: system.temperatures, battery: system.battery?.temperature)
             }
 
-            if let memory = system.memory {
+            if !hidden.contains(.memory), let memory = system.memory {
                 Card(title: "Memória", symbol: "memorychip",
                      trailing: "\(Format.memory(memory.used)) de \(Format.memory(memory.total))") {
                     ProgressView(value: Double(memory.used), total: Double(memory.total))
@@ -83,21 +123,23 @@ struct SystemTab: View {
                 }
             }
 
-            Card(title: "Rede", symbol: "network") {
-                MaskedIP(address: system.localIP)
-            } content: {
-                DualSparkline(first: system.downloadHistory, second: system.uploadHistory)
-                HStack {
-                    Label(Format.rate(system.download), systemImage: "arrow.down")
-                        .foregroundStyle(.green)
-                    Spacer()
-                    Label(Format.rate(system.upload), systemImage: "arrow.up")
-                        .foregroundStyle(.orange)
+            if !hidden.contains(.network) {
+                Card(title: "Rede", symbol: "network") {
+                    MaskedIP(address: system.localIP)
+                } content: {
+                    DualSparkline(first: system.downloadHistory, second: system.uploadHistory)
+                    HStack {
+                        Label(Format.rate(system.download), systemImage: "arrow.down")
+                            .foregroundStyle(.green)
+                        Spacer()
+                        Label(Format.rate(system.upload), systemImage: "arrow.up")
+                            .foregroundStyle(.orange)
+                    }
+                    .font(.caption.monospacedDigit())
                 }
-                .font(.caption.monospacedDigit())
             }
 
-            if let space = system.diskSpace {
+            if !hidden.contains(.disk), let space = system.diskSpace {
                 Card(title: "Disco", symbol: "internaldrive",
                      trailing: "\(Format.disk(space.free)) livres") {
                     ProgressView(value: Double(space.total - space.free), total: Double(space.total))
@@ -106,7 +148,7 @@ struct SystemTab: View {
                 }
             }
 
-            if let battery = system.battery {
+            if !hidden.contains(.battery), let battery = system.battery {
                 Card(title: "Bateria", symbol: battery.symbol, trailing: "\(battery.level)%") {
                     ProgressView(value: Double(battery.level), total: 100)
                         .tint(battery.level <= 20 && !battery.isOnAC ? .red : .green)
@@ -123,6 +165,118 @@ struct SystemTab: View {
                 }
             }
         }
+    }
+}
+
+/// Layout compacto: blocos quadrados em grade de 3 colunas, sem rolagem.
+struct CompactSystemView: View {
+    let system: SystemMonitor
+    let sections: [PanelSection]
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(sections, id: \.self) { section in
+                tile(section)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tile(_ section: PanelSection) -> some View {
+        switch section {
+        case .cpu:
+            Tile(symbol: "cpu", title: "CPU", value: Format.percent(system.cpuUsage),
+                 valueColor: Format.usageColor(system.cpuUsage)) {
+                Sparkline(values: system.cpuHistory, maxValue: 100, color: .blue, height: 18)
+            }
+        case .gpu:
+            if let gpu = system.gpu {
+                Tile(symbol: "cube", title: "GPU", value: Format.percent(gpu.utilization),
+                     valueColor: Format.usageColor(gpu.utilization)) {
+                    Sparkline(values: system.gpuHistory, maxValue: 100, color: .purple, height: 18)
+                }
+            }
+        case .temperatures:
+            if let cpu = system.cpuTemperature {
+                Tile(symbol: "thermometer.medium", title: "Temperatura", value: Format.temperature(cpu),
+                     valueColor: Format.temperatureColor(cpu)) {
+                    detail(otherTemperatures)
+                }
+            }
+        case .memory:
+            if let memory = system.memory, memory.total > 0 {
+                Tile(symbol: "memorychip", title: "Memória",
+                     value: Format.percent(Double(memory.used) / Double(memory.total) * 100),
+                     valueColor: memory.pressure == .normal ? .primary : memory.pressure.color) {
+                    detail(Format.memory(memory.used))
+                }
+            }
+        case .network:
+            Tile(symbol: "network", title: "Rede", value: Format.rate(system.download)) {
+                detail("↑ \(Format.rate(system.upload))")
+            }
+        case .disk:
+            if let space = system.diskSpace {
+                Tile(symbol: "internaldrive", title: "Disco", value: Format.disk(space.free)) {
+                    detail("livres")
+                }
+            }
+        case .battery:
+            if let battery = system.battery {
+                Tile(symbol: battery.symbol, title: "Bateria", value: "\(battery.level)%",
+                     valueColor: battery.level <= 20 && !battery.isOnAC ? .red : .primary) {
+                    detail(battery.status)
+                }
+            }
+        }
+    }
+
+    /// "GPU 30° · SSD 40°": a CPU já é o valor principal do bloco.
+    private var otherTemperatures: String {
+        ["GPU", "SSD"].compactMap { name in
+            system.temperatures.first { $0.id == name }.map { "\(name) \(Format.temperature($0.maximum))" }
+        }
+        .joined(separator: " · ")
+    }
+
+    private func detail(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct Tile<Footer: View>: View {
+    let symbol: String
+    let title: String
+    let value: String
+    var valueColor: Color = .primary
+    @ViewBuilder let footer: Footer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemImage: symbol)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            Text(value)
+                .font(.system(size: 20, weight: .semibold).monospacedDigit())
+                .foregroundStyle(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            footer
+                .frame(height: 18)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .aspectRatio(1, contentMode: .fit)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -188,14 +342,16 @@ struct CoreBars: View {
 
 struct ProcessesTab: View {
     let system: SystemMonitor
+    let compact: Bool
 
     var body: some View {
+        let limit = compact ? 5 : .max
         VStack(spacing: 10) {
             Card(title: "Mais usam CPU", symbol: "cpu") {
-                ProcessList(processes: system.topProcesses, highlight: .cpu)
+                ProcessList(processes: Array(system.topProcesses.prefix(limit)), highlight: .cpu)
             }
             Card(title: "Mais usam memória", symbol: "memorychip") {
-                ProcessList(processes: system.topMemoryProcesses, highlight: .memory)
+                ProcessList(processes: Array(system.topMemoryProcesses.prefix(limit)), highlight: .memory)
             }
         }
     }
@@ -229,6 +385,7 @@ struct ProcessList: View {
 
 struct WeatherTab: View {
     let weather: WeatherService
+    let compact: Bool
 
     @State private var isEditing = false
     @State private var cityQuery = ""
@@ -315,10 +472,16 @@ struct WeatherTab: View {
                     .font(.caption)
                     .frame(maxHeight: .infinity, alignment: .top)
             }
-            StatRow("Sensação", "\(Int(current.apparentTemperature.rounded()))°")
-            StatRow("Umidade", "\(current.relativeHumidity2m)%")
-            StatRow("Vento", "\(Int(current.windSpeed10m.rounded())) km/h")
-            if !location.region.isEmpty {
+            if compact {
+                Text("Sensação \(Format.temperature(current.apparentTemperature)) · Umidade \(current.relativeHumidity2m)% · Vento \(Int(current.windSpeed10m.rounded())) km/h")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                StatRow("Sensação", "\(Int(current.apparentTemperature.rounded()))°")
+                StatRow("Umidade", "\(current.relativeHumidity2m)%")
+                StatRow("Vento", "\(Int(current.windSpeed10m.rounded())) km/h")
+            }
+            if !compact, !location.region.isEmpty {
                 Text(location.region).font(.caption2).foregroundStyle(.tertiary)
             }
         }
@@ -343,8 +506,9 @@ struct WeatherTab: View {
     }
 
     private func daily(_ forecast: Forecast) -> some View {
-        Card(title: "7 dias", symbol: "calendar") {
-            ForEach(forecast.days) { day in
+        let days = compact ? Array(forecast.days.prefix(4)) : forecast.days
+        return Card(title: "\(days.count) dias", symbol: "calendar") {
+            ForEach(days) { day in
                 HStack {
                     Text(day.weekday).frame(width: 44, alignment: .leading)
                     Image(systemName: WeatherCode.symbol(day.code, isDay: true))
@@ -381,107 +545,14 @@ struct WeatherTab: View {
     }
 }
 
-// MARK: - Alertas
-
-struct AlertsTab: View {
-    @AppStorage(AlertSettings.cpuEnabled) private var cpuEnabled = false
-    @AppStorage(AlertSettings.cpuThreshold) private var cpuThreshold = AlertSettings.defaultCPUThreshold
-    @AppStorage(AlertSettings.memoryEnabled) private var memoryEnabled = false
-    @AppStorage(AlertSettings.temperatureEnabled) private var temperatureEnabled = false
-    @AppStorage(AlertSettings.temperatureThreshold) private var temperatureThreshold = AlertSettings.defaultTemperatureThreshold
-
-    @State private var isAuthorized = true
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Card(title: "CPU", symbol: "cpu") {
-                Toggle("Avisar quando o uso passar de \(Format.percent(cpuThreshold))", isOn: $cpuEnabled)
-                Slider(value: $cpuThreshold, in: 50...100, step: 5)
-                    .disabled(!cpuEnabled)
-                hint("Por mais de 30 segundos. O aviso mostra o app que mais está usando CPU.")
-            }
-
-            Card(title: "Memória", symbol: "memorychip") {
-                Toggle("Avisar quando a pressão de memória ficar alta", isOn: $memoryEnabled)
-                hint("É o sinal de que o Mac está ficando sem memória e começando a ficar lento.")
-            }
-
-            Card(title: "Temperatura", symbol: "thermometer.medium") {
-                Toggle("Avisar quando a CPU passar de \(Format.temperature(temperatureThreshold))", isOn: $temperatureEnabled)
-                Slider(value: $temperatureThreshold, in: 60...105, step: 5)
-                    .disabled(!temperatureEnabled)
-                hint("Por mais de 30 segundos.")
-            }
-
-            if !isAuthorized {
-                Card(title: "Notificações desativadas", symbol: "bell.slash") {
-                    hint("Permita as notificações do MacMonitor para receber os avisos.")
-                    Button("Abrir Ajustes de Notificações") {
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                    .font(.caption)
-                }
-            }
-
-            HStack {
-                Text("Depois de um aviso, o mesmo alerta espera 10 min para repetir.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-                Button("Testar") {
-                    Task {
-                        isAuthorized = await AlertMonitor.requestAuthorization()
-                        AlertMonitor.send(id: "test", title: "MacMonitor", body: "As notificações estão funcionando.")
-                    }
-                }
-                .controlSize(.small)
-            }
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .font(.caption)
-        .task { isAuthorized = await AlertMonitor.isAuthorized() || !anyEnabled }
-        .onChange(of: anyEnabled) { _, enabled in
-            guard enabled else { return }
-            Task { isAuthorized = await AlertMonitor.requestAuthorization() }
-        }
-    }
-
-    private var anyEnabled: Bool {
-        cpuEnabled || memoryEnabled || temperatureEnabled
-    }
-
-    private func hint(_ text: String) -> some View {
-        Text(text)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
 // MARK: - Rodapé
 
 struct FooterView: View {
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-
     var body: some View {
         HStack {
-            Toggle("Abrir ao iniciar sessão", isOn: $launchAtLogin)
-                .toggleStyle(.checkbox)
-                .font(.caption)
-                .onChange(of: launchAtLogin) { _, enabled in
-                    do {
-                        if enabled {
-                            try SMAppService.mainApp.register()
-                        } else {
-                            try SMAppService.mainApp.unregister()
-                        }
-                    } catch {
-                        launchAtLogin = SMAppService.mainApp.status == .enabled
-                    }
-                }
+            Text("MacMonitor \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
             Spacer()
             Button("Sair") { NSApplication.shared.terminate(nil) }
                 .controlSize(.small)

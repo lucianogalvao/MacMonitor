@@ -327,6 +327,38 @@ enum ProcessReader {
     }
 }
 
+// MARK: - GPU
+
+struct GPUSample {
+    /// Em %.
+    let utilization: Double
+    let memoryInUse: UInt64?
+}
+
+enum GPUReader {
+    /// Estatísticas que o driver da GPU publica no IORegistry (API pública).
+    static func read() -> GPUSample? {
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAccelerator"), &iterator) == KERN_SUCCESS
+        else { return nil }
+        defer { IOObjectRelease(iterator) }
+
+        var sample: GPUSample?
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            if let statistics = registryProperty(service, "PerformanceStatistics") as? [String: Any],
+               let utilization = (statistics["Device Utilization %"] as? NSNumber)?.doubleValue,
+               utilization >= sample?.utilization ?? 0 {
+                sample = GPUSample(utilization: utilization,
+                                   memoryInUse: (statistics["In use system memory"] as? NSNumber)?.uint64Value)
+            }
+            IOObjectRelease(service)
+            service = IOIteratorNext(iterator)
+        }
+        return sample
+    }
+}
+
 // MARK: - Modelo do Mac
 
 enum DeviceInfo {
