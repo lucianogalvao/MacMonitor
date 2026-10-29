@@ -1,12 +1,35 @@
 import SwiftUI
 
+// Entrada pelo AppKit: uma cena SwiftUI obrigaria a existir uma janela (vazia) de Settings
 @main
-struct MacMonitorApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+@MainActor
+enum MacMonitorApp {
+    private static let appDelegate = AppDelegate()
 
-    // O ícone e o painel são do StatusBarController; o SwiftUI só precisa de uma cena
-    var body: some Scene {
-        Settings { EmptyView() }
+    static func main() {
+        let app = NSApplication.shared
+        app.delegate = appDelegate
+        app.mainMenu = editMenu()
+        app.run()
+    }
+
+    /// Só o menu Editar, para ⌘C/⌘V/⌘A/⌘Z funcionarem no campo de cidade.
+    private static func editMenu() -> NSMenu {
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        let main = NSMenu()
+        main.addItem(NSMenuItem(title: "", action: nil, keyEquivalent: ""))
+        let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        editItem.submenu = edit
+        main.addItem(editItem)
+        return main
     }
 }
 
