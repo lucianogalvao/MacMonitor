@@ -1,42 +1,48 @@
 # MacMonitor
 
-Monitor de sistema para a barra de menus do macOS, feito em Swift/SwiftUI.
+A lightweight system monitor for the macOS menu bar, built with Swift and SwiftUI.
 
-- **CPU:** uso total e por núcleo, com histórico
-- **Temperaturas:** CPU, GPU, chip, SSD e bateria (Apple Silicon)
-- **Memória:** uso, pressão, comprimida e swap
-- **Rede:** download/upload e IP local (escondido por padrão)
-- **Disco:** espaço livre, leitura e escrita
-- **Bateria:** nível, tempo restante, ciclos e saúde
-- **Processos:** os que mais usam CPU e memória
-- **Clima:** atual, próximas horas e 7 dias, via [Open-Meteo](https://open-meteo.com) (sem chave)
+- **CPU:** total and per-core usage, with history
+- **Temperatures:** CPU, GPU, SoC, SSD and battery (Apple Silicon)
+- **Memory:** usage, pressure, compressed and swap
+- **Network:** download/upload speed and local IP (hidden by default)
+- **Disk:** free space, read and write speed
+- **Battery:** charge, time remaining, cycle count and health
+- **Processes:** top apps by CPU and by memory
+- **Weather:** current conditions, hourly and 7-day forecast via [Open-Meteo](https://open-meteo.com) (no API key needed)
+- **Alerts:** notifications for high CPU usage, memory pressure and CPU temperature
 
-## Requisitos
+## Requirements
 
-- Mac com Apple Silicon (M1 ou mais novo)
-- macOS 14 (Sonoma) ou mais recente
-- Para compilar: Xcode ou as ferramentas de linha de comando (`xcode-select --install`)
+- Apple Silicon Mac (M1 or later)
+- macOS 14 Sonoma or later
+- To build: Xcode or the Command Line Tools (`xcode-select --install`)
 
-## Compilar
+## Install
+
+Download `MacMonitor.dmg` from [Releases](https://github.com/lucianogalvao/MacMonitor/releases), open it and drag MacMonitor to Applications.
+
+The app is ad-hoc signed (not notarized by Apple), so macOS blocks it the first time you open it. To allow it, go to **System Settings → Privacy & Security** and click **Open Anyway**. If macOS says the app is damaged, run:
 
 ```bash
-./build.sh
+xattr -dr com.apple.quarantine /Applications/MacMonitor.app
+```
+
+## Build
+
+```bash
+./build.sh                 # builds build/MacMonitor.app
 open build/MacMonitor.app
+./make-dmg.sh              # builds build/MacMonitor.dmg (app + Applications shortcut + install notes)
 ```
 
-## Gerar o .dmg
+The app icon is drawn in code (`Scripts/make-icon.swift`). To regenerate `Resources/AppIcon.icns`, run `Scripts/make-icon.sh`.
 
-```bash
-./make-dmg.sh
-```
+## About temperatures
 
-Gera `build/MacMonitor.dmg` com o app, um atalho para a pasta Aplicativos e o `LEIAME.txt` com as instruções de instalação.
+Temperatures are read through IOHID, an internal macOS interface also used by tools like Stats and iStat Menus. It needs no special permissions, but it isn't documented by Apple and may change in future macOS releases. Sensor names vary between chips, so readings are grouped by name prefix. Intel Macs aren't supported, and the temperature card is hidden there.
 
-O app usa assinatura ad-hoc, sem a conta paga de desenvolvedor da Apple. Por isso, na primeira abertura em outro Mac, o macOS bloqueia o app e é preciso liberar em **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**. O passo a passo completo está no [LEIAME](Resources/LEIAME.txt).
-
-## Temperaturas
-
-As temperaturas são lidas pelo IOHID, uma interface interna do macOS. Ela funciona sem permissões especiais, mas não é documentada pela Apple e pode mudar em atualizações do sistema. Para listar os sensores de um Mac:
+To list every sensor on a Mac:
 
 ```bash
 swift Scripts/sensors-probe.swift

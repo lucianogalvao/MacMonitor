@@ -39,6 +39,7 @@ final class SystemMonitor {
     @ObservationIgnored private let networkReader = NetworkReader()
     @ObservationIgnored private let diskReader = DiskReader()
     @ObservationIgnored private let temperatureReader = TemperatureReader()
+    @ObservationIgnored private let alerts = AlertMonitor()
     @ObservationIgnored private var isPanelVisible = false
     @ObservationIgnored private var loop: Task<Void, Never>?
 
@@ -90,6 +91,8 @@ final class SystemMonitor {
 
         temperatures = temperatureReader.read()
         battery = BatteryReader.read()
+
+        alerts.evaluate(cpuUsage: cpuUsage, pressure: memory?.pressure, cpuTemperature: cpuTemperature)
 
         if isPanelVisible {
             refreshProcesses()

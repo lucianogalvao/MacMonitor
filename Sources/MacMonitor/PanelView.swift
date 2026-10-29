@@ -9,6 +9,7 @@ struct PanelView: View {
         case system = "Sistema"
         case processes = "Processos"
         case weather = "Clima"
+        case alerts = "Alertas"
     }
 
     static let contentHeight: CGFloat = 600
@@ -38,6 +39,7 @@ struct PanelView: View {
                 case .system: SystemTab(system: system)
                 case .processes: ProcessesTab(system: system)
                 case .weather: WeatherTab(weather: weather)
+                case .alerts: AlertsTab()
                 }
             }
             .scrollIndicators(.never)
@@ -376,6 +378,86 @@ struct WeatherTab: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
+    }
+}
+
+// MARK: - Alertas
+
+struct AlertsTab: View {
+    @AppStorage(AlertSettings.cpuEnabled) private var cpuEnabled = false
+    @AppStorage(AlertSettings.cpuThreshold) private var cpuThreshold = AlertSettings.defaultCPUThreshold
+    @AppStorage(AlertSettings.memoryEnabled) private var memoryEnabled = false
+    @AppStorage(AlertSettings.temperatureEnabled) private var temperatureEnabled = false
+    @AppStorage(AlertSettings.temperatureThreshold) private var temperatureThreshold = AlertSettings.defaultTemperatureThreshold
+
+    @State private var isAuthorized = true
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Card(title: "CPU", symbol: "cpu") {
+                Toggle("Avisar quando o uso passar de \(Format.percent(cpuThreshold))", isOn: $cpuEnabled)
+                Slider(value: $cpuThreshold, in: 50...100, step: 5)
+                    .disabled(!cpuEnabled)
+                hint("Por mais de 30 segundos. O aviso mostra o app que mais está usando CPU.")
+            }
+
+            Card(title: "Memória", symbol: "memorychip") {
+                Toggle("Avisar quando a pressão de memória ficar alta", isOn: $memoryEnabled)
+                hint("É o sinal de que o Mac está ficando sem memória e começando a ficar lento.")
+            }
+
+            Card(title: "Temperatura", symbol: "thermometer.medium") {
+                Toggle("Avisar quando a CPU passar de \(Format.temperature(temperatureThreshold))", isOn: $temperatureEnabled)
+                Slider(value: $temperatureThreshold, in: 60...105, step: 5)
+                    .disabled(!temperatureEnabled)
+                hint("Por mais de 30 segundos.")
+            }
+
+            if !isAuthorized {
+                Card(title: "Notificações desativadas", symbol: "bell.slash") {
+                    hint("Permita as notificações do MacMonitor para receber os avisos.")
+                    Button("Abrir Ajustes de Notificações") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .font(.caption)
+                }
+            }
+
+            HStack {
+                Text("Depois de um aviso, o mesmo alerta espera 10 min para repetir.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Button("Testar") {
+                    Task {
+                        isAuthorized = await AlertMonitor.requestAuthorization()
+                        AlertMonitor.send(id: "test", title: "MacMonitor", body: "As notificações estão funcionando.")
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .font(.caption)
+        .task { isAuthorized = await AlertMonitor.isAuthorized() || !anyEnabled }
+        .onChange(of: anyEnabled) { _, enabled in
+            guard enabled else { return }
+            Task { isAuthorized = await AlertMonitor.requestAuthorization() }
+        }
+    }
+
+    private var anyEnabled: Bool {
+        cpuEnabled || memoryEnabled || temperatureEnabled
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

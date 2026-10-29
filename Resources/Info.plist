@@ -8,6 +8,8 @@
     <string>MacMonitor</string>
     <key>CFBundleDisplayName</key>
     <string>MacMonitor</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleExecutable</key>
     <string>MacMonitor</string>
     <key>CFBundlePackageType</key>
