@@ -24,6 +24,16 @@ Monitor de sistema para a barra de menus do macOS, feito em Swift/SwiftUI.
 open build/MacMonitor.app
 ```
 
+## Gerar o .dmg
+
+```bash
+./make-dmg.sh
+```
+
+Gera `build/MacMonitor.dmg` com o app, um atalho para a pasta Aplicativos e o `LEIAME.txt` com as instruções de instalação.
+
+O app usa assinatura ad-hoc, sem a conta paga de desenvolvedor da Apple. Por isso, na primeira abertura em outro Mac, o macOS bloqueia o app e é preciso liberar em **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**. O passo a passo completo está no [LEIAME](Resources/LEIAME.txt).
+
 ## Temperaturas
 
 As temperaturas são lidas pelo IOHID, uma interface interna do macOS. Ela funciona sem permissões especiais, mas não é documentada pela Apple e pode mudar em atualizações do sistema. Para listar os sensores de um Mac:

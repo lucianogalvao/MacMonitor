@@ -1,0 +1,51 @@
+MacMonitor
+==========
+
+Monitor de sistema para a barra de menus: CPU, temperaturas, memória,
+rede, disco, bateria, processos e clima.
+
+Requisitos: Mac com Apple Silicon (M1 ou mais novo) e macOS 14 ou mais recente.
+
+
+INSTALAR
+--------
+
+1. Arraste o MacMonitor para a pasta Aplicativos (o atalho está ao lado).
+2. Abra o MacMonitor pela pasta Aplicativos.
+
+
+SE O MAC BLOQUEAR A ABERTURA
+----------------------------
+
+O app não tem assinatura paga da Apple, então na primeira vez o macOS
+avisa que não consegue verificar o desenvolvedor. Para liberar:
+
+1. Clique em "OK" (ou "Concluído") no aviso.
+2. Abra Ajustes do Sistema > Privacidade e Segurança.
+3. Role até o fim: aparece "O MacMonitor foi bloqueado...".
+   Clique em "Abrir Mesmo Assim" e confirme com a sua senha.
+
+Isso só é necessário uma vez.
+
+Se aparecer a mensagem de que o app "está danificado", abra o Terminal
+e rode o comando abaixo; depois abra o app de novo:
+
+    xattr -dr com.apple.quarantine /Applications/MacMonitor.app
+
+
+PRIMEIRO USO
+------------
+
+- O app não aparece no Dock: ele fica na barra de menus, no topo da tela,
+  com um ícone de chip e o uso da CPU. Clique nele para abrir o painel.
+- Na aba Clima, digite a sua cidade (ex.: "Campinas" ou "Lisboa, Portugal").
+- Para abrir junto com o Mac, marque "Abrir ao iniciar sessão" no rodapé.
+
+
+DESINSTALAR
+-----------
+
+Clique em "Sair" no rodapé do painel e apague o MacMonitor da pasta Aplicativos.
+
+
+Código-fonte: https://github.com/lucianogalvao/MacMonitor
